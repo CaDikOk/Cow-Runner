@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Game Bò Sữa 🐄</title>
+<style>
+  body {
+    margin:0;
+    background:#87CEEB;
+    overflow:hidden;
+    font-family: Arial, sans-serif;
+  }
+  canvas {
+    display:block;
+    margin:0 auto;
+    background: linear-gradient(#87CEEB, #cceeff);
+  }
+  #musicToggle {
+    position:absolute;
+    top:10px;
+    right:10px;
+    padding:8px 12px;
+    border:none;
+    border-radius:20px;
+    background:#4caf50;
+    color:white;
+    font-size:14px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="400"></canvas>
+<button id="musicToggle">🔊 Nhạc</button>
+
+<!-- Âm thanh -->
+<audio id="bgMusic" src="bg.mp3" loop></audio>
+<audio id="jumpSound" src="jump.mp3"></audio>
+<audio id="hitSound" src="moo.mp3"></audio>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+let groundHeight = 50;
+let gravity = 0.6;
+let jumpPower = -12;
+let isJumping = false;
+let gameOver = false;
+let score = 0;
+let speed = 4;
+let startTime = null;
+
+// 👉 Bạn thay đường dẫn ảnh tại đây
+const cowImg = new Image();
+cowImg.src = "cow.png"; // hình con bò bạn tải về
+
+const fenceImg = new Image();
+fenceImg.src = "fence.png"; // hình hàng rào bạn tải về
+
+let player = { x:50, y:0, w:60, h:60, vy:0 };
+let obstacles = [];
+
+function resetGame(){
+  player.y = canvas.height - groundHeight - player.h;
+  player.vy = 0;
+  isJumping = false;
+  gameOver = false;
+  score = 0;
+  speed = 4;
+  startTime = Date.now();
+  obstacles = [];
+}
+
+function jump(){
+  if(!isJumping){
+    player.vy = jumpPower;
+    isJumping = true;
+    document.getElementById("jumpSound").play();
+  }
+}
+
+function createObstacle(){
+  let w = 30 + Math.random()*20;
+  let h = 40 + Math.random()*20;
+  obstacles.push({ x:canvas.width, y:canvas.height-groundHeight-h, w:w, h:h });
+}
+
+function collision(a,b){
+  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+
+let nextObstacleTime = 0;
+function update(){
+  if(gameOver) return;
+  let now = Date.now();
+  let elapsed = (now - startTime)/1000;
+
+  // tăng tốc theo mốc thời gian
+  if(elapsed > 50) speed = 10;
+  else if(elapsed > 35) speed = 8;
+  else if(elapsed > 15) speed = 6;
+  else if(elapsed > 5) speed = 4.5;
+
+  player.vy += gravity;
+  player.y += player.vy;
+  if(player.y >= canvas.height - groundHeight - player.h){
+    player.y = canvas.height - groundHeight - player.h;
+    isJumping = false;
+  }
+
+  if(now > nextObstacleTime){
+    createObstacle();
+    nextObstacleTime = now + (1500 + Math.random()*2000);
+  }
+
+  for(let o of obstacles) o.x -= speed;
+
+  for(let o of obstacles){
+    if(collision(player,o)){
+      gameOver = true;
+      document.getElementById("hitSound").play();
+      bgMusic.pause();
+    }
+  }
+
+  score++;
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle="green";
+  ctx.fillRect(0, canvas.height-groundHeight, canvas.width, groundHeight);
+
+  ctx.drawImage(cowImg, player.x, player.y, player.w, player.h);
+
+  for(let o of obstacles){
+    ctx.drawImage(fenceImg, o.x, o.y, o.w, o.h);
+  }
+
+  ctx.fillStyle="black";
+  ctx.font="20px Arial";
+  ctx.fillText("Điểm: "+score, 10,30);
+
+  if(gameOver){
+    ctx.fillStyle="red";
+    ctx.font="30px Arial";
+    ctx.fillText("Game Over! Nhấn Space để chơi lại", 200,200);
+  }
+}
+
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+document.addEventListener("keydown", (e)=>{
+  if(e.code==="Space"){
+    if(gameOver){
+      startGame();
+      document.getElementById("bgMusic").play();
+    } else {
+      jump();
+    }
+  }
+});
+
+// Nhạc nền toggle
+const bgMusic = document.getElementById("bgMusic");
+const musicToggle = document.getElementById("musicToggle");
+let musicOn = true;
+musicToggle.addEventListener("click", ()=>{
+  if(musicOn){
+    bgMusic.pause();
+    musicToggle.textContent="🔇 Tắt";
+  } else {
+    bgMusic.play();
+    musicToggle.textContent="🔊 Nhạc";
+  }
+  musicOn=!musicOn;
+});
+
+function startGame(){
+  if(musicOn) bgMusic.play();
+  resetGame();
+}
+
+resetGame();
+loop();
+</script>
+</body>
+</html>
+
